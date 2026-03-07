@@ -1,0 +1,13 @@
+[Unit]
+Description=EyeLeo - Eye care reminder
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/Apps/eyeleo/eyeleo.py start -duration 20
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+
