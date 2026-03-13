@@ -168,11 +168,11 @@ def status():
 def stop():
     """Stop the running EyeLeo daemon"""
     state_file = Path.home() / ".config" / "eyeleo" / "state"
-    
+
     if state_file.exists():
         with open(state_file, 'r') as f:
             pid = f.read().strip()
-        
+
         try:
             os.kill(int(pid), signal.SIGTERM)
             print(f"✓ Stopped EyeLeo (PID: {pid})")
@@ -180,6 +180,49 @@ def stop():
             print(f"Error stopping EyeLeo: {e}")
     else:
         print("✗ EyeLeo is not running")
+
+
+def test():
+    """Send a test notification immediately"""
+    print("Sending test notification...")
+    eyeleo = EyeLeo(duration=20)  # Duration doesn't matter for test
+    eyeleo.send_notification()
+    print("✓ Test notification sent")
+
+
+def restart():
+    """Restart the systemd service (reload daemon and restart)"""
+    try:
+        # Reload systemd daemon
+        print("Reloading systemd daemon...")
+        result = subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        # Restart the service
+        print("Restarting eyeleo.service...")
+        result = subprocess.run(
+            ["systemctl", "--user", "restart", "eyeleo.service"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        print("✓ EyeLeo service restarted successfully")
+
+        # Show status
+        time.sleep(1)
+        subprocess.run(["systemctl", "--user", "status", "eyeleo.service", "--no-pager"])
+
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Error restarting service: {e}")
+        if e.stderr:
+            print(f"  {e.stderr}")
+    except FileNotFoundError:
+        print("✗ Error: systemctl not found. This command requires systemd.")
 
 
 def main():
@@ -193,24 +236,28 @@ Examples:
   eyeleo.py resume                # Resume notifications
   eyeleo.py status                # Check if running
   eyeleo.py stop                  # Stop the daemon
+  eyeleo.py restart               # Restart the systemd service
+  eyeleo.py test                  # Send a test notification immediately
         """
     )
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Commands')
-    
+
     # Start command
     start_parser = subparsers.add_parser('start', help='Start EyeLeo daemon')
     start_parser.add_argument('-duration', type=int, default=20,
                             help='Notification interval in minutes (default: 20)')
-    
+
     # Control commands
     subparsers.add_parser('pause', help='Pause notifications')
     subparsers.add_parser('resume', help='Resume notifications')
     subparsers.add_parser('status', help='Check status')
     subparsers.add_parser('stop', help='Stop daemon')
-    
+    subparsers.add_parser('restart', help='Restart systemd service (daemon-reload + restart)')
+    subparsers.add_parser('test', help='Send a test notification immediately')
+
     args = parser.parse_args()
-    
+
     if args.command == 'start':
         eyeleo = EyeLeo(duration=args.duration)
         eyeleo.run()
@@ -222,6 +269,10 @@ Examples:
         status()
     elif args.command == 'stop':
         stop()
+    elif args.command == 'restart':
+        restart()
+    elif args.command == 'test':
+        test()
     else:
         parser.print_help()
 
